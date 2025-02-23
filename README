@@ -1,0 +1,2 @@
+proxyflow - proxy relay
+this program periodically checks proxies, measures their response time and redirects user's requests to the best proxies
