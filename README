@@ -1,2 +1,11 @@
-proxyflow - proxy relay
-this program periodically checks proxies, measures their response time and redirects user's requests to the best proxies
+proxyflow - the proxy relay
+===========================
+this program periodically checks proxies, measures their response times, and redirects user requests to the best proxies
+
+list of issues that need to be fixed:
+- an incorrect user request will cause the proxy to fail, resulting in the deletion of the proxy due to exceeding the error limit
+- timeouts are hardcoded and are not even in the const section
+- issues with network connection will result in the deletion of the proxy due to exceeding the error limit
+- functionality for adding proxies to storage while the program is running has not yet been implemented
+- error descriptions received from the connector are ignored
+- the map of bad proxies is not utilized, but it can be used to return proxies to the normal map or to save them elsewhere
