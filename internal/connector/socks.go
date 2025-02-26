@@ -29,13 +29,13 @@ func s4Handshake(conn net.Conn, connTo ConnectWho) (net.Conn, string) {
 	_, err := conn.Write(request)
 	if err != nil {
 		conn.Close()
-		return nil, "s4 stage1s: " + err.Error()
+		return nil, "crit: s4 stage1s: " + err.Error()
 	}
 	buff := make([]byte, BUFFSIZE)
 	_, err = conn.Read(buff)
 	if err != nil {
 		conn.Close()
-		return nil, "s4 stage1r: " + err.Error()
+		return nil, "crit: s4 stage1r: " + err.Error()
 	}
 	if !bytes.HasPrefix(buff, []byte{0x00, 0x5a}) {
 		conn.Close()
@@ -52,17 +52,17 @@ func s5Handshake(conn net.Conn, connTo ConnectWho) (net.Conn, string) {
 	_, err := conn.Write(s1rq)
 	if err != nil {
 		conn.Close()
-		return nil, "s5 stage1s: " + err.Error()
+		return nil, "crit: s5 stage1s: " + err.Error()
 	}
 	buff := make([]byte, BUFFSIZE)
 	_, err = conn.Read(buff)
 	if err != nil {
 		conn.Close()
-		return nil, "s5 stage1r: " + err.Error()
+		return nil, "crit: s5 stage1r: " + err.Error()
 	}
 	if !bytes.HasPrefix(buff, []byte{0x05, 0x00}) {
 		conn.Close()
-		return nil, "s5 stage1r: auth is not accepted"
+		return nil, "crit: s5 stage1r: auth is not accepted"
 	}
 	//stage 2
 	s2rq := make([]byte, 0, 10)
@@ -73,12 +73,12 @@ func s5Handshake(conn net.Conn, connTo ConnectWho) (net.Conn, string) {
 	_, err = conn.Write(s2rq)
 	if err != nil {
 		conn.Close()
-		return nil, "s5 stage2s: " + err.Error()
+		return nil, "crit: s5 stage2s: " + err.Error()
 	}
 	_, err = conn.Read(buff)
 	if err != nil {
 		conn.Close()
-		return nil, "s5 stage2r: " + err.Error()
+		return nil, "crit: s5 stage2r: " + err.Error()
 	}
 	if !bytes.HasPrefix(buff, []byte{0x05, 0x00, 0x00}) {
 		conn.Close()

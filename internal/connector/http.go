@@ -30,13 +30,13 @@ func httpHandshake(conn net.Conn, connTo ConnectWho) (net.Conn, string) {
 	_, err := conn.Write([]byte(tosend))
 	if err != nil {
 		conn.Close()
-		return nil, "http stage1s: " + err.Error()
+		return nil, "crit: http stage1s: " + err.Error()
 	}
 	buff := make([]byte, BUFFSIZE)
 	n, err := conn.Read(buff)
 	if err != nil {
 		conn.Close()
-		return nil, "http stage1r: " + err.Error()
+		return nil, "crit: http stage1r: " + err.Error()
 	}
 	shouldbe := []byte("HTTP/1.1 200")
 	if n < len(shouldbe) || !bytes.HasPrefix(buff, shouldbe) {
@@ -53,7 +53,7 @@ func httpsHandshake(conn net.Conn, connTo ConnectWho) (net.Conn, string) {
 	err := tlsConn.Handshake()
 	if err != nil {
 		conn.Close()
-		return nil, "https: tls handshake: " + err.Error()
+		return nil, "crit: https tls handshake: " + err.Error()
 	}
 	return httpHandshake(tlsConn, connTo)
 }

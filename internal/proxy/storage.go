@@ -14,6 +14,7 @@ package proxy
 import (
 	"math/rand"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,7 +40,7 @@ func NewProxyManager() *ProxyManager {
 
 type Message struct {
 	Prx *Proxy
-	Err bool
+	Err string
 	Dur time.Duration
 }
 
@@ -53,8 +54,8 @@ func (pm *ProxyManager) ServeProxies(requests <-chan chan Message) {
 		if prx != nil {
 			go func () {
 				ans := <-req
-				if ans.Err {
-					pm.addError(ans.Prx)
+				if ans.Err != "" {
+					pm.addError(ans.Prx, ans.Err)
 				} else if ans.Dur != 0 {
 					pm.changeHandshakeAvg(ans.Prx, ans.Dur)
 				}
@@ -87,8 +88,8 @@ func (pm *ProxyManager) ServeChecker(requests <-chan chan Message) {
 
 			go func() {
 				ans := <-req
-				if ans.Err {
-					pm.addError(ans.Prx)
+				if ans.Err != "" {
+					pm.addError(ans.Prx, ans.Err)
 				} else if ans.Dur != 0 {
 					pm.changeHandshakeAvg(ans.Prx, ans.Dur)
 				}
@@ -123,27 +124,33 @@ func (pm *ProxyManager) changeHandshakeAvg(prx *Proxy, newVal time.Duration) {
 		logging.Warn("changeHandshakeAvg: proxy not found")
 		return
 	}
-	stats.handshakeAvg = (stats.handshakeAvg + newVal) / 2
-	pm.sortProxies()
+	if (newVal > stats.handshakeAvg && newVal - stats.handshakeAvg >= time.Duration(500) * time.Millisecond) || newVal < stats.handshakeAvg {
+		stats.handshakeAvg = (stats.handshakeAvg + newVal) / 2
+		pm.proxies[prx] = stats
+		pm.sortProxies()
+	}
 }
 
 // increment errors counter (del on 3rd error)
-func (pm *ProxyManager) addError(prx *Proxy) {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
+func (pm *ProxyManager) addError(prx *Proxy, error string) {
+	if strings.HasPrefix(error, "crit") {
+		pm.mu.Lock()
+		defer pm.mu.Unlock()
 
-	stats, exists := pm.proxies[prx]
-	if !exists {
-		logging.Warn("addError: proxy not found")
-		return
-	}
-	stats.errors++
-	pm.proxies[prx] = stats
-	if stats.errors > MAXERRORS {
-		delete(pm.proxies, prx)
-		pm.badProxies[prx] = stats
-		pm.rmFromSorted(prx)
-		logging.Warn("proxy " + prx.Address + " is removed due to exceeding the error limit")
+		stats, exists := pm.proxies[prx]
+		if !exists {
+			logging.Warn("addError: proxy not found")
+			return
+		}
+		stats.errors++
+		stats.lastErr = error
+		pm.proxies[prx] = stats
+		if stats.errors > MAXERRORS {
+			delete(pm.proxies, prx)
+			pm.badProxies[prx] = stats
+			pm.rmFromSorted(prx)
+			logging.Warn("proxy " + prx.Address + " is removed due to exceeding the error limit (last err \"" + error +"\")")
+		}
 	}
 }
 

@@ -59,10 +59,10 @@ func getconnto() *connector.ConnectWho {
 	return connwho
 }
 
-func check(prx *proxy.Proxy) (bool, time.Duration) {
+func check(prx *proxy.Proxy) (string, time.Duration) {
 	conn, err, dur := connector.ConnectToPrx(prx, *getconnto())
 	if err != "" {
-		return true, dur
+		return "crit (checking phase): " + err, dur
 	}
 	defer conn.Close()
 
@@ -71,7 +71,7 @@ func check(prx *proxy.Proxy) (bool, time.Duration) {
 	tlsConn := tls.Client(conn, &tls.Config{ServerName: HOSTTOCHECK})
 	erro := tlsConn.Handshake()
 	if erro != nil {
-		return true, dur
+		return "crit (checking phase): handshaking with remote: " + erro.Error(), dur
 	}
 
 	rq := []byte(fmt.Sprintf("GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: %s\r\nAccept: */*\r\n\r\n", URLTOCHECK, HOSTTOCHECK, USERAGENT))
@@ -80,19 +80,19 @@ func check(prx *proxy.Proxy) (bool, time.Duration) {
 	
 	_, erro = tlsConn.Write(rq)
 	if erro != nil {
-		return true, dur
+		return "crit (checking phase): sending request to remote: " + erro.Error(), dur
 	}
 
 	n, erro := tlsConn.Read(buff)
 	if erro != nil {
-		return true, dur
+		return "crit (checking phase): getting answer from remote: " + erro.Error(), dur
 	}
 
 	if n < len(shouldbe) || !bytes.HasPrefix(buff, shouldbe) {
-		return true, dur
+		return "crit (checking phase): didn't get satisfying answer", dur
 	}
 	
-	return false, dur
+	return "", dur
 }
 
 func checking(rq chan<- chan proxy.Message) {

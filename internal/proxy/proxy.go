@@ -32,4 +32,5 @@ type Proxy struct {
 type proxyStats struct {
 	handshakeAvg time.Duration
 	errors uint8
+	lastErr string
 }
