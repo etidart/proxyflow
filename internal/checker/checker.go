@@ -74,8 +74,8 @@ func check(prx *proxy.Proxy) (string, time.Duration) {
 		return "crit (checking phase): handshaking with remote: " + erro.Error(), dur
 	}
 
-	rq := []byte(fmt.Sprintf("GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: %s\r\nAccept: */*\r\n\r\n", URLTOCHECK, HOSTTOCHECK, USERAGENT))
-	shouldbe := []byte(fmt.Sprintf("HTTP/1.1 %d", WANTEDCODE))
+	rq := fmt.Appendf(nil, "GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: %s\r\nAccept: */*\r\n\r\n", URLTOCHECK, HOSTTOCHECK, USERAGENT)
+	shouldbe := fmt.Appendf(nil, "HTTP/1.1 %d", WANTEDCODE)
 	buff := make([]byte, 4096)
 	
 	_, erro = tlsConn.Write(rq)
@@ -113,7 +113,7 @@ func checking(rq chan<- chan proxy.Message) {
 func StartChecking(nth int, pm *proxy.ProxyManager) {
 	c := make(chan chan proxy.Message)
 	go pm.ServeChecker(c)
-	for i := 0; i < nth; i++ {
+	for range nth {
 		go checking(c)
 		time.Sleep(time.Duration(100) * time.Millisecond)
 	}

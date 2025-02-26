@@ -13,6 +13,7 @@ package proxy
 
 import (
 	"math/rand"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -174,7 +175,7 @@ func (pm *ProxyManager) sortProxies() {
 func (pm *ProxyManager) rmFromSorted(proxy *Proxy) {
 	for i, p := range pm.sortedProxies {
 		if p == proxy {
-			pm.sortedProxies = append(pm.sortedProxies[:i], pm.sortedProxies[i+1:]...)
+			pm.sortedProxies = slices.Delete(pm.sortedProxies, i, i+1)
 			break
 		}
 	}
