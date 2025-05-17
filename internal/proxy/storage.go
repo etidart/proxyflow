@@ -67,10 +67,12 @@ func (pm *ProxyManager) ServeProxies(requests <-chan chan Message) {
 
 // same as ServeProxies() but gives not the best, but random proxy
 func (pm *ProxyManager) ServeChecker(requests <-chan chan Message) {
+	const checkCooldown time.Duration = time.Duration(1) * time.Second
+	alreadyChecking := make(map[*Proxy]time.Time)
 	for {
 		pm.mu.Lock()
 		if len(pm.sortedProxies) == 0 {
-			logging.Error("ServeChecker: no available proxies, but required to work")
+			//logging.Error("ServeChecker: no available proxies, but required to work")
 			pm.mu.Unlock()
 			time.Sleep(time.Duration(100) * time.Millisecond)
 			continue
@@ -83,18 +85,57 @@ func (pm *ProxyManager) ServeChecker(requests <-chan chan Message) {
 			proxyCopy[i], proxyCopy[j] = proxyCopy[j], proxyCopy[i]
 		})
 
-		for _, proxy := range proxyCopy {
-			req := <-requests
-			req <- Message{Prx: proxy}
+		// for further deletion from alreadyChecking
+		lookup := make(map[*Proxy]struct{})
 
-			go func() {
-				ans := <-req
-				if ans.Err != "" {
-					pm.addError(ans.Prx, ans.Err)
-				} else if ans.Dur != 0 {
-					pm.changeHandshakeAvg(ans.Prx, ans.Dur)
+		for _, proxy := range proxyCopy {
+			lookup[proxy] = struct{}{}
+
+			req := <-requests
+			tval, isIn := alreadyChecking[proxy]
+			var good bool
+			if !isIn {
+				alreadyChecking[proxy] = time.Now()
+				good = true
+			} else {
+				if time.Since(tval) < checkCooldown {
+					good = false
+				} else {
+					alreadyChecking[proxy] = time.Now()
+					good = true
 				}
-			}()
+			}
+
+			if good {
+				req <- Message{Prx: proxy}
+				go func() {
+					ans := <-req
+					if ans.Err != "" {
+						pm.addError(ans.Prx, ans.Err)
+					} else if ans.Dur != 0 {
+						pm.changeHandshakeAvg(ans.Prx, ans.Dur)
+					}
+				}()
+			}
+		}
+
+		// cleanup alreadyChecking using lookup
+		for key := range alreadyChecking {
+			if _, found := lookup[key]; !found {
+				delete(alreadyChecking, key)
+			}
+		}
+
+		// optimize by sleeping
+		var earlistTime time.Time
+		for _, t := range alreadyChecking {
+			if earlistTime.IsZero() || t.Before(earlistTime) {
+				earlistTime = t
+			}
+		}
+		dur2sleep := checkCooldown - time.Since(earlistTime)
+		if dur2sleep > 0 {
+			time.Sleep(dur2sleep)
 		}
 	}
 }
