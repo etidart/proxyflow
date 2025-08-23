@@ -15,6 +15,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/etidart/proxyflow/internal/constants"
 	"github.com/etidart/proxyflow/internal/proxy"
 )
 
@@ -26,12 +27,11 @@ type ConnectWho struct {
 func ConnectToPrx(prx *proxy.Proxy, connTo ConnectWho) (net.Conn, string, time.Duration) {
 	currTime := time.Now()
 	// time is measuring -------------
-	operationsTO, _ := time.ParseDuration("1s") // timeout for handshaking (and connecting)
-	connection, err := net.DialTimeout("tcp4", prx.Address, operationsTO)
+	connection, err := net.DialTimeout("tcp4", prx.Address, constants.CONCONNHSTO)
 	if err != nil {
 		return nil, "while connecting: " + err.Error(), 0
 	}
-	connection.SetDeadline(time.Now().Add(operationsTO))
+	connection.SetDeadline(time.Now().Add(constants.CONCONNHSTO))
 
 	// transfering all the work
 	var rconn net.Conn
@@ -48,6 +48,7 @@ func ConnectToPrx(prx *proxy.Proxy, connTo ConnectWho) (net.Conn, string, time.D
 	}
 	// -------------------------------
 	if rerr == "" {
+		rconn.SetDeadline(time.Time{}) // no more deadlines
 		hsMeasure := time.Since(currTime)
 		return rconn, "", hsMeasure
 	}

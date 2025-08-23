@@ -17,8 +17,10 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/etidart/proxyflow/internal/connector"
+	"github.com/etidart/proxyflow/internal/constants"
 	"github.com/etidart/proxyflow/internal/logging"
 	"github.com/etidart/proxyflow/internal/proxy"
 )
@@ -33,10 +35,6 @@ const (
 	TTLEXPIRED byte = 0x06
 	PROTOERR byte = 0x07
 	ADDRTYPEERR byte = 0x08
-)
-
-const (
-	MAXRETRIES = 2
 )
 
 func ListenAndServe(listenon string, rqc chan<- chan proxy.Message) {
@@ -116,11 +114,12 @@ func handleConn(conn net.Conn, rqc chan<- chan proxy.Message) {
 	var retrynum uint8 = 0
 	for pconn = getpconn(rqc, &rqhost); pconn == nil; {
 		retrynum++
-		if (retrynum > MAXRETRIES) {
+		if (retrynum > constants.SRVMAXRETRIES) {
 			logging.Error("unable to get proxy for request (" + hosttodisplay + "). dropping request...")
 			break
 		} else {
 			logging.Error("unable to get proxy for request (" + hosttodisplay + "). retrying...")
+			time.Sleep(constants.SRVRETRYCD)
 		}
 	}
 	if pconn == nil {

@@ -15,12 +15,12 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"math/rand"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/etidart/proxyflow/internal/connector"
+	"github.com/etidart/proxyflow/internal/constants"
 	"github.com/etidart/proxyflow/internal/logging"
 	"github.com/etidart/proxyflow/internal/proxy"
 )
@@ -29,12 +29,6 @@ var (
 	once sync.Once
 	connwho *connector.ConnectWho
 )
-const (
-	HOSTTOCHECK = "www.gstatic.com"
-	URLTOCHECK = "/generate_204"
-	WANTEDCODE = 204
-	USERAGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36" // the most popular one
-)
 
 func getconnto() *connector.ConnectWho {
 	once.Do(func() {
@@ -42,9 +36,9 @@ func getconnto() *connector.ConnectWho {
 			IP: "",
 			Port: 443,
 		}
-		ipAddresses, err := net.LookupIP(HOSTTOCHECK)
+		ipAddresses, err := net.LookupIP(constants.CHKHOST)
     	if err != nil {
-			logging.Fatal("IP of " + HOSTTOCHECK + " wasn't resolved: " + err.Error())
+			logging.Fatal("IP of " + constants.CHKHOST + " wasn't resolved: " + err.Error())
     	}
 		for _, ip := range ipAddresses {
 			if ip.To4() != nil {
@@ -53,7 +47,7 @@ func getconnto() *connector.ConnectWho {
 			}
 		}
 		if connwho.IP == "" {
-			logging.Fatal("IP of " + HOSTTOCHECK + " wasn't resolved")
+			logging.Fatal("IP of " + constants.CHKHOST + " wasn't resolved")
 		}
 	})
 	return connwho
@@ -66,16 +60,16 @@ func check(prx *proxy.Proxy) (string, time.Duration) {
 	}
 	defer conn.Close()
 
-	conn.SetDeadline(time.Now().Add(time.Duration(1) * time.Second)) // 1sec
+	conn.SetDeadline(time.Now().Add(constants.CHKTO))
 
-	tlsConn := tls.Client(conn, &tls.Config{ServerName: HOSTTOCHECK})
+	tlsConn := tls.Client(conn, &tls.Config{ServerName: constants.CHKHOST})
 	erro := tlsConn.Handshake()
 	if erro != nil {
 		return "crit (checking phase): handshaking with remote: " + erro.Error(), dur
 	}
 
-	rq := fmt.Appendf(nil, "GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: %s\r\nAccept: */*\r\n\r\n", URLTOCHECK, HOSTTOCHECK, USERAGENT)
-	shouldbe := fmt.Appendf(nil, "HTTP/1.1 %d", WANTEDCODE)
+	rq := fmt.Appendf(nil, "GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: %s\r\nAccept: */*\r\n\r\n", constants.CHKURL, constants.CHKHOST, constants.CHKUSERAGENT)
+	shouldbe := fmt.Appendf(nil, "HTTP/1.1 %d", constants.CHKRESPCODE)
 	buff := make([]byte, 4096)
 	
 	_, erro = tlsConn.Write(rq)
@@ -106,7 +100,7 @@ func checking(rq chan<- chan proxy.Message) {
 			Err: err,
 			Dur: dur,
 		}
-		time.Sleep(time.Duration(rand.Intn(3000-1000+1) + 1000) * time.Millisecond)
+		time.Sleep(constants.CHKTOBTWNCHKS)
 	}
 }
 

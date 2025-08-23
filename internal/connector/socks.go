@@ -15,7 +15,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"net"
-	"time"
 )
 
 func s4Handshake(conn net.Conn, connTo ConnectWho) (net.Conn, string) {
@@ -31,7 +30,7 @@ func s4Handshake(conn net.Conn, connTo ConnectWho) (net.Conn, string) {
 		conn.Close()
 		return nil, "crit: s4 stage1s: " + err.Error()
 	}
-	buff := make([]byte, BUFFSIZE)
+	buff := make([]byte, 16384)
 	_, err = conn.Read(buff)
 	if err != nil {
 		conn.Close()
@@ -42,7 +41,6 @@ func s4Handshake(conn net.Conn, connTo ConnectWho) (net.Conn, string) {
 		return nil, "s4 stage1r: answer is not 5ah (granted)"
 	}
 	// done -----------------
-	conn.SetDeadline(time.Time{}) // no more deadlines
 	return conn, ""
 }
 
@@ -54,7 +52,7 @@ func s5Handshake(conn net.Conn, connTo ConnectWho) (net.Conn, string) {
 		conn.Close()
 		return nil, "crit: s5 stage1s: " + err.Error()
 	}
-	buff := make([]byte, BUFFSIZE)
+	buff := make([]byte, 16384)
 	_, err = conn.Read(buff)
 	if err != nil {
 		conn.Close()
@@ -85,6 +83,5 @@ func s5Handshake(conn net.Conn, connTo ConnectWho) (net.Conn, string) {
 		return nil, "s5 stage2r: answer is not 00h (granted)"
 	}
 	// done -----------------
-	conn.SetDeadline(time.Time{}) // no more deadlines
 	return conn, ""
 }

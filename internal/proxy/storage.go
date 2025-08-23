@@ -19,10 +19,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/etidart/proxyflow/internal/constants"
 	"github.com/etidart/proxyflow/internal/logging"
 )
-
-const MAXERRORS = 2
 
 type ProxyManager struct {
 	mu sync.Mutex
@@ -45,7 +44,7 @@ type Message struct {
 	Dur time.Duration
 }
 
-// serves as channel receiving machine (ha-ha)
+// serves as channel receiving machine
 func (pm *ProxyManager) ServeProxies(requests <-chan chan Message) {
 	for {
 		req := <-requests
@@ -67,7 +66,6 @@ func (pm *ProxyManager) ServeProxies(requests <-chan chan Message) {
 
 // same as ServeProxies() but gives not the best, but random proxy
 func (pm *ProxyManager) ServeChecker(requests <-chan chan Message) {
-	const checkCooldown time.Duration = time.Duration(1) * time.Second
 	alreadyChecking := make(map[*Proxy]time.Time)
 	for {
 		pm.mu.Lock()
@@ -98,7 +96,7 @@ func (pm *ProxyManager) ServeChecker(requests <-chan chan Message) {
 				alreadyChecking[proxy] = time.Now()
 				good = true
 			} else {
-				if time.Since(tval) < checkCooldown {
+				if time.Since(tval) < constants.PRXCHKCD {
 					good = false
 				} else {
 					alreadyChecking[proxy] = time.Now()
@@ -133,15 +131,12 @@ func (pm *ProxyManager) ServeChecker(requests <-chan chan Message) {
 				earlistTime = t
 			}
 		}
-		dur2sleep := checkCooldown - time.Since(earlistTime)
-		if dur2sleep > 0 {
-			time.Sleep(dur2sleep)
-		}
+		time.Sleep(constants.PRXCHKCD - time.Since(earlistTime))
 	}
 }
 
-// adds a new proxy to manager
-func (pm *ProxyManager) AddProxy(addr string, prot Protocol) {
+// appends a proxy to manager with specified handshakeAvg
+func (pm *ProxyManager) addProxyHS(addr string, prot Protocol, hsavg time.Duration) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 	proxy := &Proxy{
@@ -149,11 +144,16 @@ func (pm *ProxyManager) AddProxy(addr string, prot Protocol) {
 		Proto: prot,
 	}
 	pm.proxies[proxy] = proxyStats{
-		handshakeAvg: 0,
+		handshakeAvg: hsavg,
 		errors: 0,
 	}
 	pm.sortedProxies = append(pm.sortedProxies, proxy)
 	pm.sortProxies()
+}
+
+// appends a proxy to manager
+func (pm *ProxyManager) AddProxy(addr string, prot Protocol) {
+	pm.addProxyHS(addr, prot, constants.PRXDEFHSAVG)
 }
 
 // update the handshakeAvg
@@ -166,14 +166,21 @@ func (pm *ProxyManager) changeHandshakeAvg(prx *Proxy, newVal time.Duration) {
 		logging.Warn("changeHandshakeAvg: proxy not found")
 		return
 	}
-	if (newVal > stats.handshakeAvg && newVal - stats.handshakeAvg >= time.Duration(500) * time.Millisecond) || newVal < stats.handshakeAvg {
+
+	var difference time.Duration
+	if newVal >= stats.handshakeAvg {
+		difference = newVal - stats.handshakeAvg
+	} else {
+		difference = stats.handshakeAvg - newVal
+	}
+	if difference >= constants.PRXMINHSAVGDIFF {
 		stats.handshakeAvg = (stats.handshakeAvg + newVal) / 2
 		pm.proxies[prx] = stats
 		pm.sortProxies()
 	}
 }
 
-// increment errors counter (del on 3rd error)
+// increment errors counter (del when limit is reached)
 func (pm *ProxyManager) addError(prx *Proxy, error string) {
 	if strings.HasPrefix(error, "crit") {
 		pm.mu.Lock()
@@ -187,7 +194,7 @@ func (pm *ProxyManager) addError(prx *Proxy, error string) {
 		stats.errors++
 		stats.lastErr = error
 		pm.proxies[prx] = stats
-		if stats.errors > MAXERRORS {
+		if stats.errors > constants.PRXMAXERRS {
 			delete(pm.proxies, prx)
 			pm.badProxies[prx] = stats
 			pm.rmFromSorted(prx)

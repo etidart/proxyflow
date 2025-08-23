@@ -16,23 +16,19 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"time"
-)
 
-const (
-	USERAGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36" // the most popular one
-	BUFFSIZE = 16384
+	"github.com/etidart/proxyflow/internal/constants"
 )
 
 func httpHandshake(conn net.Conn, connTo ConnectWho) (net.Conn, string) {
 	tosend := fmt.Sprintf("CONNECT %[1]s:%[2]d HTTP/1.1\r\nHost: %[1]s:%[2]d\r\nUser-Agent: %[3]s\r\nProxy-Connection: Keep-Alive\r\n\r\n",
-						  connTo.IP, connTo.Port, USERAGENT)
+						  connTo.IP, connTo.Port, constants.CONUSERAGENT)
 	_, err := conn.Write([]byte(tosend))
 	if err != nil {
 		conn.Close()
 		return nil, "crit: http stage1s: " + err.Error()
 	}
-	buff := make([]byte, BUFFSIZE)
+	buff := make([]byte, 16384)
 	n, err := conn.Read(buff)
 	if err != nil {
 		conn.Close()
@@ -44,7 +40,6 @@ func httpHandshake(conn net.Conn, connTo ConnectWho) (net.Conn, string) {
 		return nil, "http stage1r: answer is not 200 OK"
 	}
 	// done -----------------
-	conn.SetDeadline(time.Time{}) // no more deadlines
 	return conn, ""
 }
 
