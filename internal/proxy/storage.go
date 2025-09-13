@@ -24,7 +24,7 @@ import (
 )
 
 type ProxyManager struct {
-	mu sync.Mutex
+	cond sync.Cond
 	proxies map[*Proxy]proxyStats
 	badProxies map[*Proxy]proxyStats
 	sortedProxies []*Proxy
@@ -35,6 +35,7 @@ func NewProxyManager() *ProxyManager {
 	return &ProxyManager{
 		proxies: make(map[*Proxy]proxyStats),
 		badProxies: make(map[*Proxy]proxyStats),
+		cond: *sync.NewCond(&sync.Mutex{}),
 	}
 }
 
@@ -51,16 +52,14 @@ func (pm *ProxyManager) ServeProxies(requests <-chan chan Message) {
 		prx := pm.getBestProxy()
 		req <- Message{Prx: prx}
 		
-		if prx != nil {
-			go func () {
-				ans := <-req
-				if ans.Err != "" {
-					pm.addError(ans.Prx, ans.Err)
-				} else if ans.Dur != 0 {
-					pm.changeHandshakeAvg(ans.Prx, ans.Dur)
-				}
-			}()
-		}
+		go func () {
+			ans := <-req
+			if ans.Err != "" {
+				pm.addError(ans.Prx, ans.Err)
+			} else if ans.Dur != 0 {
+				pm.changeHandshakeAvg(ans.Prx, ans.Dur)
+			}
+		}()
 	}
 }
 
@@ -68,16 +67,13 @@ func (pm *ProxyManager) ServeProxies(requests <-chan chan Message) {
 func (pm *ProxyManager) ServeChecker(requests <-chan chan Message) {
 	alreadyChecking := make(map[*Proxy]time.Time)
 	for {
-		pm.mu.Lock()
-		if len(pm.sortedProxies) == 0 {
-			//logging.Error("ServeChecker: no available proxies, but required to work")
-			pm.mu.Unlock()
-			time.Sleep(time.Duration(100) * time.Millisecond)
-			continue
+		pm.cond.L.Lock()
+		for (len(pm.sortedProxies) == 0) {
+			pm.cond.Wait()
 		}
 		proxyCopy := make([]*Proxy, len(pm.sortedProxies))
 		copy(proxyCopy, pm.sortedProxies)
-		pm.mu.Unlock()
+		pm.cond.L.Unlock()
 
 		rand.Shuffle(len(proxyCopy), func(i, j int) {
 			proxyCopy[i], proxyCopy[j] = proxyCopy[j], proxyCopy[i]
@@ -137,8 +133,8 @@ func (pm *ProxyManager) ServeChecker(requests <-chan chan Message) {
 
 // appends a proxy to manager with specified handshakeAvg
 func (pm *ProxyManager) addProxyHS(addr string, prot Protocol, hsavg time.Duration) {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
+	pm.cond.L.Lock()
+	defer pm.cond.L.Unlock()
 	proxy := &Proxy{
 		Address: addr,
 		Proto: prot,
@@ -158,12 +154,12 @@ func (pm *ProxyManager) AddProxy(addr string, prot Protocol) {
 
 // update the handshakeAvg
 func (pm *ProxyManager) changeHandshakeAvg(prx *Proxy, newVal time.Duration) {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
+	pm.cond.L.Lock()
+	defer pm.cond.L.Unlock()
 
 	stats, exists := pm.proxies[prx]
 	if !exists {
-		logging.Warn("changeHandshakeAvg: proxy not found")
+		//logging.Warn("changeHandshakeAvg: proxy not found")
 		return
 	}
 
@@ -183,12 +179,12 @@ func (pm *ProxyManager) changeHandshakeAvg(prx *Proxy, newVal time.Duration) {
 // increment errors counter (del when limit is reached)
 func (pm *ProxyManager) addError(prx *Proxy, error string) {
 	if strings.HasPrefix(error, "crit") {
-		pm.mu.Lock()
-		defer pm.mu.Unlock()
+		pm.cond.L.Lock()
+		defer pm.cond.L.Unlock()
 
 		stats, exists := pm.proxies[prx]
 		if !exists {
-			logging.Warn("addError: proxy not found")
+			//logging.Warn("addError: proxy not found")
 			return
 		}
 		stats.errors++
@@ -205,11 +201,15 @@ func (pm *ProxyManager) addError(prx *Proxy, error string) {
 
 // returns the best available proxy
 func (pm *ProxyManager) getBestProxy() *Proxy {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
+	pm.cond.L.Lock()
+	defer pm.cond.L.Unlock()
 	if len(pm.sortedProxies) == 0 {
-		logging.Error("getBestProxy: no available proxies, but requested")
-		return nil
+		// rotate maps
+		for k, v := range pm.badProxies {
+			pm.addProxyHS(k.Address, k.Proto, v.handshakeAvg)
+		}
+		pm.badProxies = make(map[*Proxy]proxyStats)
+		pm.cond.Broadcast()
 	}
 	return pm.sortedProxies[0]
 }

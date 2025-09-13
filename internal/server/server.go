@@ -152,9 +152,6 @@ func getpconn(rqc chan<- chan proxy.Message, rqhost *connector.ConnectWho) net.C
 	c := make(chan proxy.Message)
 	rqc <- c
 	prx := (<-c).Prx
-	if prx == nil {
-		return nil
-	}
 	pconn, perr, ptime := connector.ConnectToPrx(prx, *rqhost)
 	if perr != "" {
 		c <- proxy.Message{
