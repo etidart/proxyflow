@@ -26,20 +26,20 @@ import (
 )
 
 var (
-	once sync.Once
+	once    sync.Once
 	connwho *connector.ConnectWho
 )
 
 func getconnto() *connector.ConnectWho {
 	once.Do(func() {
 		connwho = &connector.ConnectWho{
-			IP: "",
+			IP:   "",
 			Port: 443,
 		}
 		ipAddresses, err := net.LookupIP(constants.CHKHOST)
-    	if err != nil {
+		if err != nil {
 			logging.Fatal("IP of " + constants.CHKHOST + " wasn't resolved: " + err.Error())
-    	}
+		}
 		for _, ip := range ipAddresses {
 			if ip.To4() != nil {
 				connwho.IP = ip.String()
@@ -71,7 +71,7 @@ func check(prx *proxy.Proxy) (string, time.Duration) {
 	rq := fmt.Appendf(nil, "GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: %s\r\nAccept: */*\r\n\r\n", constants.CHKURL, constants.CHKHOST, constants.CHKUSERAGENT)
 	shouldbe := fmt.Appendf(nil, "HTTP/1.1 %d", constants.CHKRESPCODE)
 	buff := make([]byte, 4096)
-	
+
 	_, erro = tlsConn.Write(rq)
 	if erro != nil {
 		return "crit (checking phase): sending request to remote: " + erro.Error(), dur
@@ -85,7 +85,7 @@ func check(prx *proxy.Proxy) (string, time.Duration) {
 	if n < len(shouldbe) || !bytes.HasPrefix(buff, shouldbe) {
 		return "crit (checking phase): didn't get satisfying answer", dur
 	}
-	
+
 	return "", dur
 }
 

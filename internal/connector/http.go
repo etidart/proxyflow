@@ -22,7 +22,7 @@ import (
 
 func httpHandshake(conn net.Conn, connTo ConnectWho) (net.Conn, string) {
 	tosend := fmt.Sprintf("CONNECT %[1]s:%[2]d HTTP/1.1\r\nHost: %[1]s:%[2]d\r\nUser-Agent: %[3]s\r\nProxy-Connection: Keep-Alive\r\n\r\n",
-						  connTo.IP, connTo.Port, constants.CONUSERAGENT)
+		connTo.IP, connTo.Port, constants.CONUSERAGENT)
 	_, err := conn.Write([]byte(tosend))
 	if err != nil {
 		conn.Close()

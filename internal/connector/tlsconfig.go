@@ -18,14 +18,14 @@ import (
 
 var (
 	tlsConfig *tls.Config
-	once sync.Once
+	once      sync.Once
 )
 
 func getTLSConfig() *tls.Config {
 	once.Do(func() {
 		tlsConfig = &tls.Config{
-			MinVersion: tls.VersionTLS10,
-			MaxVersion: tls.VersionTLS13,
+			MinVersion:         tls.VersionTLS10,
+			MaxVersion:         tls.VersionTLS13,
 			InsecureSkipVerify: true,
 			CipherSuites: []uint16{
 				// <= 1.2

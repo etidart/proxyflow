@@ -28,13 +28,13 @@ import (
 const (
 	REQUESTGRANTED byte = 0x00
 	GENERALFAILURE byte = 0x01
-	NOTALLOWED byte = 0x02
-	NETUNREACH byte = 0x03
-	HOSTUNREACH byte = 0x04
-	CONNREFUSED byte = 0x05
-	TTLEXPIRED byte = 0x06
-	PROTOERR byte = 0x07
-	ADDRTYPEERR byte = 0x08
+	NOTALLOWED     byte = 0x02
+	NETUNREACH     byte = 0x03
+	HOSTUNREACH    byte = 0x04
+	CONNREFUSED    byte = 0x05
+	TTLEXPIRED     byte = 0x06
+	PROTOERR       byte = 0x07
+	ADDRTYPEERR    byte = 0x08
 )
 
 func ListenAndServe(listenon string, rqc chan<- chan proxy.Message) {
@@ -64,7 +64,7 @@ func handleConn(conn net.Conn, rqc chan<- chan proxy.Message) {
 	if buff[0] != 0x05 {
 		return
 	}
-	_, err = conn.Write([]byte{0x05,0x00})
+	_, err = conn.Write([]byte{0x05, 0x00})
 	if err != nil {
 		return
 	}
@@ -87,8 +87,8 @@ func handleConn(conn net.Conn, rqc chan<- chan proxy.Message) {
 		hosttodisplay = fmt.Sprintf("%s:%d", rqhost.IP, rqhost.Port)
 	case 0x03: // hostname
 		size := buff[4]
-		host := string(buff[5:5+size])
-		rqhost.Port = binary.BigEndian.Uint16(buff[5+size:7+size])
+		host := string(buff[5 : 5+size])
+		rqhost.Port = binary.BigEndian.Uint16(buff[5+size : 7+size])
 		hosttodisplay = fmt.Sprintf("%s:%d", host, rqhost.Port)
 		ipAddrs, err := net.LookupIP(host)
 		if err != nil {
@@ -114,7 +114,7 @@ func handleConn(conn net.Conn, rqc chan<- chan proxy.Message) {
 	var retrynum uint8 = 0
 	for pconn = getpconn(rqc, &rqhost); pconn == nil; {
 		retrynum++
-		if (retrynum > constants.SRVMAXRETRIES) {
+		if retrynum > constants.SRVMAXRETRIES {
 			logging.Error("unable to get proxy for request (" + hosttodisplay + "). dropping request...")
 			break
 		} else {
@@ -133,7 +133,6 @@ func handleConn(conn net.Conn, rqc chan<- chan proxy.Message) {
 		return
 	}
 	logging.Info("accepted request from " + conn.RemoteAddr().String() + " (" + hosttodisplay + "; proxy: " + pconn.RemoteAddr().String() + ")")
-
 
 	var control sync.WaitGroup
 	control.Add(2)

@@ -24,18 +24,18 @@ import (
 )
 
 type ProxyManager struct {
-	cond sync.Cond
-	proxies map[*Proxy]proxyStats
-	badProxies map[*Proxy]proxyStats
+	cond          sync.Cond
+	proxies       map[*Proxy]proxyStats
+	badProxies    map[*Proxy]proxyStats
 	sortedProxies []*Proxy
 }
 
 // NewProxyManager initializes a new ProxyManager
 func NewProxyManager() *ProxyManager {
 	return &ProxyManager{
-		proxies: make(map[*Proxy]proxyStats),
+		proxies:    make(map[*Proxy]proxyStats),
 		badProxies: make(map[*Proxy]proxyStats),
-		cond: *sync.NewCond(&sync.Mutex{}),
+		cond:       *sync.NewCond(&sync.Mutex{}),
 	}
 }
 
@@ -51,8 +51,8 @@ func (pm *ProxyManager) ServeProxies(requests <-chan chan Message) {
 		req := <-requests
 		prx := pm.getBestProxy()
 		req <- Message{Prx: prx}
-		
-		go func () {
+
+		go func() {
 			ans := <-req
 			if ans.Err != "" {
 				pm.addError(ans.Prx, ans.Err)
@@ -68,7 +68,7 @@ func (pm *ProxyManager) ServeChecker(requests <-chan chan Message) {
 	alreadyChecking := make(map[*Proxy]time.Time)
 	for {
 		pm.cond.L.Lock()
-		for (len(pm.sortedProxies) == 0) {
+		for len(pm.sortedProxies) == 0 {
 			pm.cond.Wait()
 		}
 		proxyCopy := make([]*Proxy, len(pm.sortedProxies))
@@ -135,11 +135,11 @@ func (pm *ProxyManager) ServeChecker(requests <-chan chan Message) {
 func (pm *ProxyManager) addProxyHS(addr string, prot Protocol, hsavg time.Duration) {
 	proxy := &Proxy{
 		Address: addr,
-		Proto: prot,
+		Proto:   prot,
 	}
 	pm.proxies[proxy] = proxyStats{
 		handshakeAvg: hsavg,
-		errors: 0,
+		errors:       0,
 	}
 	pm.sortedProxies = append(pm.sortedProxies, proxy)
 	pm.sortProxies()
@@ -194,7 +194,7 @@ func (pm *ProxyManager) addError(prx *Proxy, error string) {
 			delete(pm.proxies, prx)
 			pm.badProxies[prx] = stats
 			pm.rmFromSorted(prx)
-			logging.Warn("proxy " + prx.Address + " is removed due to exceeding the error limit (last err \"" + error +"\")")
+			logging.Warn("proxy " + prx.Address + " is removed due to exceeding the error limit (last err \"" + error + "\")")
 		}
 	}
 }

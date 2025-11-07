@@ -20,7 +20,7 @@ import (
 )
 
 type ConnectWho struct {
-	IP string
+	IP   string
 	Port uint16
 }
 
