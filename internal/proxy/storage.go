@@ -133,8 +133,6 @@ func (pm *ProxyManager) ServeChecker(requests <-chan chan Message) {
 
 // appends a proxy to manager with specified handshakeAvg
 func (pm *ProxyManager) addProxyHS(addr string, prot Protocol, hsavg time.Duration) {
-	pm.cond.L.Lock()
-	defer pm.cond.L.Unlock()
 	proxy := &Proxy{
 		Address: addr,
 		Proto: prot,
@@ -149,6 +147,8 @@ func (pm *ProxyManager) addProxyHS(addr string, prot Protocol, hsavg time.Durati
 
 // appends a proxy to manager
 func (pm *ProxyManager) AddProxy(addr string, prot Protocol) {
+	pm.cond.L.Lock()
+	defer pm.cond.L.Unlock()
 	pm.addProxyHS(addr, prot, constants.PRXDEFHSAVG)
 }
 
