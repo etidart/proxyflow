@@ -1,4 +1,4 @@
-//go:build !xray
+//go:build xray
 
 /*
  * Copyright (C) 2025 Arseniy Astankov
@@ -29,11 +29,15 @@ type ConnectWho struct {
 func ConnectToPrx(prx *proxy.Proxy, connTo ConnectWho) (net.Conn, string, time.Duration) {
 	currTime := time.Now()
 	// time is measuring -------------
-	connection, err := net.DialTimeout("tcp4", prx.Address, constants.CONCONNHSTO)
-	if err != nil {
-		return nil, "while connecting: " + err.Error(), 0
+	var connection net.Conn
+	var err error
+	if prx.Proto != proxy.XRAY {
+		connection, err = net.DialTimeout("tcp4", prx.Address, constants.CONCONNHSTO)
+		if err != nil {
+			return nil, "while connecting: " + err.Error(), 0
+		}
+		connection.SetDeadline(time.Now().Add(constants.CONCONNHSTO))
 	}
-	connection.SetDeadline(time.Now().Add(constants.CONCONNHSTO))
 
 	// transfering all the work
 	var rconn net.Conn
@@ -47,6 +51,8 @@ func ConnectToPrx(prx *proxy.Proxy, connTo ConnectWho) (net.Conn, string, time.D
 		rconn, rerr = s4Handshake(connection, connTo)
 	case proxy.SOCKS5:
 		rconn, rerr = s5Handshake(connection, connTo)
+	case proxy.XRAY:
+		rconn, rerr = xrayHandshake(prx.Address, connTo)
 	}
 	// -------------------------------
 	if rerr == "" {

@@ -3,6 +3,12 @@
 _this program periodically checks proxies, measures their response times, and
 redirects user's requests to the best proxies_
 
+can be built with [xray-core](https://github.com/xtls/xray-core) embeded, which allows
+to use many proxy types. to do that, build with an xray tag:
+`go build -tags=xray -o proxyflow`.
+note that the size of the program and its memory footprint will then increase, so just
+do a regular build if you don't need extra functionality
+
 caveats:
 
 - timeouts and many other stuff are hardcoded (see internal/constants) but do they

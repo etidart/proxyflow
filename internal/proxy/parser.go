@@ -1,3 +1,5 @@
+//go:build !xray
+
 /*
  * Copyright (C) 2025 Arseniy Astankov
  *

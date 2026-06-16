@@ -1,7 +1,7 @@
-//go:build !xray
+//go:build xray
 
 /*
- * Copyright (C) 2025 Arseniy Astankov
+ * Copyright (C) 2025-2026 Arseniy Astankov
  *
  * This file is part of proxyflow.
  *
@@ -24,6 +24,7 @@ const (
 	HTTPS
 	SOCKS4
 	SOCKS5
+	XRAY
 )
 
 type Proxy struct {
