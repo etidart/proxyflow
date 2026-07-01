@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -113,6 +114,11 @@ func launchXray(outbound_cfgs []string) int {
 		}
 	}
 	cfg += "]}}"
+
+	cfg = regexp.MustCompile(`"[a-zA-Z]+": ?(?:(?:"")|(?:null)|0|(?:\[\])),?`).ReplaceAllString(cfg, "")
+	cfg = regexp.MustCompile(`,}`).ReplaceAllString(cfg, "}")
+	cfg = regexp.MustCompile(`"[a-zA-Z]+": ?{},?`).ReplaceAllString(cfg, "")
+	cfg = regexp.MustCompile(`,}`).ReplaceAllString(cfg, "}")
 
 	err = xray.RunXrayFromJSON("", cfg)
 	if err != nil {

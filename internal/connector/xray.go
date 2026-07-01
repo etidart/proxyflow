@@ -23,7 +23,7 @@ import (
 
 func xrayHandshake(address string, connTo ConnectWho) (net.Conn, string) {
 	xray_port, username, _ := strings.Cut(address, ":")
-	conn, err := net.Dial("tcp4", "127.0.0.1"+fmt.Sprint(xray_port))
+	conn, err := net.Dial("tcp4", "127.0.0.1:"+fmt.Sprint(xray_port))
 	if err != nil {
 		panic(err)
 	}
